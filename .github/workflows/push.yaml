@@ -1,0 +1,48 @@
+name: Build & Deploy
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    name: Build and Test
+    runs-on: self-hosted
+    container: maven:latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - run: mvn clean install; mvn validate
+    - uses: actions/upload-artifact@v4
+      with:
+        name: maven-build
+        path: target/*.jar
+  deploy:
+    name: Deploy jar
+    runs-on: self-hosted
+    needs: build
+    container: node:latest
+    env:
+      # ANSIBLE_KEY: ${{ secrets.ansible_key }}
+      DB_URL: jdbc:mysql://localhost:3306/yourdatabase
+      DB_USERNAME: yourusername
+      DB_PASSWORD: yourpassword
+      # WORKSPACE: ${{ github.workspace }}
+      ANSIBLE_STDOUT_CALLBACK: yaml
+    steps:
+    - name: Install node
+      run: apt update; apt install -y nodejs npm
+    - name: Checkout code
+      uses: actions/checkout@v4   
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: maven-build
+        path: ./ansible/artifact
+    # - name: Run Playbook
+    #   run:  |
+    #         cd ansible
+    #         echo "$ANSIBLE_KEY" > ANSIBLE_KEY
+    #         chown 400 HOST_KEY
+    #         sed -i "s|$|  ansible_ssh_private_key_file=$WORKSPACE/ansible/HOST_KEY|" inventory
+    #         ansible-playbook -i inventory -vv playbook.yml  
+      
